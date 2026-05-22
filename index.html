@@ -709,6 +709,25 @@
     width: 100%; height: 100%; object-fit: cover; display: block;
   }
 
+  /* === ПІД ЧАС PDF-РЕНДЕРУ — примусовий desktop-вигляд резюме =====
+     html2canvas копіює стилі з DOM, тому навіть на мобільному ми
+     прибираємо мобільні правила для .resume-card під час генерації.
+     Клас pdf-rendering додається у JS і прибирається після рендеру. */
+  .resume-card.pdf-rendering {
+    padding: 50px 55px !important;
+    width: 800px !important;
+    max-width: 800px !important;
+    margin: 0 !important;
+  }
+  .resume-card.pdf-rendering .resume-name { font-size: 32px !important; }
+  .resume-card.pdf-rendering .resume-position-line { font-size: 14px !important; padding: 6px 14px !important; }
+  .resume-card.pdf-rendering .resume-photo { width: 110px !important; height: 110px !important; }
+  .resume-card.pdf-rendering .resume-equipment-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .resume-card.pdf-rendering .resume-eq-label { min-width: 130px !important; }
+  .resume-card.pdf-rendering .resume-watermark .wm-row { font-size: 32px !important; }
+  .resume-card.pdf-rendering .resume-top { flex-direction: row !important; align-items: flex-start !important; text-align: left !important; gap: 24px !important; }
+  .resume-card.pdf-rendering .resume-contacts { justify-content: flex-start !important; font-size: 13px !important; gap: 10px 18px !important; }
+
   @media (max-width: 700px) {
     .container { padding: 18px 14px 60px; }
     .progress-container { padding: 14px 16px; border-radius: 14px; }
@@ -1576,11 +1595,29 @@ async function downloadPDF() {
   btn.disabled = true;
   try {
     const element = document.getElementById('resumeCard');
-    const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    const PDF_WIDTH_PX = 800;
+
+    // Тимчасово вмикаємо desktop-вигляд резюме — щоб PDF на мобільному виглядав так само як на компʼютері
+    element.classList.add('pdf-rendering');
+    // Дай браузеру кадр, щоб застосувати стилі перед canvas
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    let canvas;
+    try {
+      canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        windowWidth: PDF_WIDTH_PX,
+        width: PDF_WIDTH_PX
+      });
+    } finally {
+      element.classList.remove('pdf-rendering');
+    }
+
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
 
-    // A4 ширина у мм
     const pageWidthMm = 210;
     const a4HeightMm = 297;
     const imgWidthMm = pageWidthMm;
@@ -1588,7 +1625,6 @@ async function downloadPDF() {
 
     let pdf;
     if (imgHeightMm <= a4HeightMm) {
-      // Резюме коротше за A4 — робимо PDF-сторінку точно під розмір резюме (без порожнього хвоста)
       pdf = new jsPDF({
         orientation: 'p',
         unit: 'mm',
@@ -1596,7 +1632,6 @@ async function downloadPDF() {
       });
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidthMm, imgHeightMm);
     } else {
-      // Резюме довше за A4 — багатосторінковий PDF (стандартний A4)
       pdf = new jsPDF('p', 'mm', 'a4');
       let heightLeft = imgHeightMm;
       let position = 0;
