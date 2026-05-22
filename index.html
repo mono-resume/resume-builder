@@ -1613,6 +1613,13 @@ function renderTurnstile() {
   tryRender();
 }
 
+function resetTurnstile() {
+  turnstileToken = '';
+  if (typeof turnstile !== 'undefined' && turnstileWidgetId !== null) {
+    try { turnstile.reset(turnstileWidgetId); } catch (_) {}
+  }
+}
+
 function restart() {
   Object.assign(data, {
     source: '',
@@ -1826,6 +1833,7 @@ async function sendApplication() {
         savePending(form.toString());
         btn.textContent = original;
         btn.disabled = false;
+        resetTurnstile();
         alert('Сервер тимчасово недоступний. Дані збережено у браузері — спробуй ще раз через хвилину натиснувши «Відправити відгук».');
         return;
       }
