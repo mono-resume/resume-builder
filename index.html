@@ -458,23 +458,20 @@
     position: relative;
     box-shadow: 0 14px 50px rgba(0,0,0,0.5);
     overflow: hidden;
+    contain: paint;
   }
   .resume-watermark {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
     transform: rotate(-30deg);
     transform-origin: center center;
     pointer-events: none;
     user-select: none;
     z-index: 0;
-    overflow: hidden;
     line-height: 1.8;
-    /* Робимо контейнер більшим за резюме, щоб після повороту -30deg кути не залишалися порожніми */
-    margin: -50%;
-    padding: 50%;
   }
   .resume-watermark .wm-row {
     display: block;
@@ -483,6 +480,7 @@
     font-weight: 900;
     color: rgba(198, 109, 255, 0.05);
     letter-spacing: 4px;
+    overflow: hidden;
   }
   .resume-watermark .wm-row.alt {
     color: rgba(255, 107, 129, 0.05);
@@ -537,11 +535,15 @@
     gap: 10px 18px;
     font-size: 13px;
     color: #555;
+    max-width: 100%;
   }
   .resume-contacts span {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
     word-break: break-word;
   }
 
@@ -594,13 +596,13 @@
 
   .resume-equipment-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     font-size: 13px;
   }
-  .resume-eq-row { display: flex; gap: 8px; }
-  .resume-eq-label { color: #888; font-weight: 600; min-width: 130px; }
-  .resume-eq-value { color: #222; }
+  .resume-eq-row { display: flex; gap: 8px; min-width: 0; }
+  .resume-eq-label { color: #888; font-weight: 600; min-width: 130px; flex-shrink: 0; }
+  .resume-eq-value { color: #222; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
 
   .resume-text-block {
     font-size: 13px;
@@ -718,12 +720,13 @@
     padding: 50px 55px !important;
     width: 800px !important;
     max-width: 800px !important;
+    min-height: 1131px !important;
     margin: 0 !important;
   }
   .resume-card.pdf-rendering .resume-name { font-size: 32px !important; }
   .resume-card.pdf-rendering .resume-position-line { font-size: 14px !important; padding: 6px 14px !important; }
   .resume-card.pdf-rendering .resume-photo { width: 110px !important; height: 110px !important; }
-  .resume-card.pdf-rendering .resume-equipment-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .resume-card.pdf-rendering .resume-equipment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .resume-card.pdf-rendering .resume-eq-label { min-width: 130px !important; }
   .resume-card.pdf-rendering .resume-watermark .wm-row { font-size: 32px !important; }
   .resume-card.pdf-rendering .resume-top { flex-direction: row !important; align-items: flex-start !important; text-align: left !important; gap: 24px !important; }
@@ -1663,34 +1666,40 @@ async function downloadPDF() {
       element.classList.remove('pdf-rendering');
     }
 
-    const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
-
     const pageWidthMm = 210;
     const a4HeightMm = 297;
-    const imgWidthMm = pageWidthMm;
-    const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
 
-    let pdf;
-    if (imgHeightMm <= a4HeightMm) {
-      pdf = new jsPDF({
-        orientation: 'p',
-        unit: 'mm',
-        format: [pageWidthMm, imgHeightMm]
-      });
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidthMm, imgHeightMm);
-    } else {
-      pdf = new jsPDF('p', 'mm', 'a4');
-      let heightLeft = imgHeightMm;
-      let position = 0;
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidthMm, imgHeightMm);
-      heightLeft -= a4HeightMm;
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeightMm;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidthMm, imgHeightMm);
-        heightLeft -= a4HeightMm;
-      }
+    // Висота "сторінкового вікна" в пікселях canvas — точно A4-пропорція від ширини
+    const pageHeightPx = Math.round(canvas.width * (a4HeightMm / pageWidthMm));
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    let renderedPx = 0;
+    let pageIndex = 0;
+
+    while (renderedPx < canvas.height) {
+      const sliceHeight = Math.min(pageHeightPx, canvas.height - renderedPx);
+
+      // Створюємо canvas-вікно для цієї сторінки. Розмір — точно A4-пропорція,
+      // навіть якщо контенту менше: нижня частина залишається білою.
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = pageHeightPx;
+      const ctx = pageCanvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      ctx.drawImage(
+        canvas,
+        0, renderedPx, canvas.width, sliceHeight,  // src
+        0, 0, canvas.width, sliceHeight             // dst
+      );
+
+      const pageData = pageCanvas.toDataURL('image/png');
+      if (pageIndex > 0) pdf.addPage();
+      pdf.addImage(pageData, 'PNG', 0, 0, pageWidthMm, a4HeightMm);
+
+      renderedPx += sliceHeight;
+      pageIndex++;
     }
 
     const filename = 'Resume_' + (data.fullName.replace(/\s+/g, '_') || 'Candidate') + '.pdf';
