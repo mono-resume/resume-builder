@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <style>
   :root {
     --bg: #0a0612;
@@ -809,7 +810,12 @@
 // ID таблиці та логіка запису ховаються на серверній стороні Apps Script.
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx9K1vHsjYaDSeSraYub_zywtRxGhGM5HxjFhuPYIbUXmT7jgzloYiUFLaYeChfL62W/exec";
 
-const FORM_TOKEN = "festival_2026";
+const FORM_TOKEN = "festival_2026_v2_xK9mP";
+
+// Cloudflare Turnstile site key (публічний)
+const TURNSTILE_SITE_KEY = "0x4AAAAAADUbsCdWDd6bCpQy";
+let turnstileWidgetId = null;
+let turnstileToken = '';
 
 const VACANCY_VIP = 'Спеціаліст консьєрж-сервісу по роботі з VIP-клієнтами';
 const SOURCE_FESTIVAL = 'Фестиваль карʼєри';
@@ -1569,6 +1575,8 @@ function renderFinal() {
         </div>
       </div>
 
+      <div id="turnstileContainer" style="display:flex;justify-content:center;margin:18px 0 4px;"></div>
+
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="restart()">🔄 Почати знову</button>
         <button class="btn btn-primary" onclick="downloadPDF()">📥 Завантажити PDF</button>
@@ -1576,6 +1584,33 @@ function renderFinal() {
       </div>
     </div>
   `;
+  renderTurnstile();
+}
+
+function renderTurnstile() {
+  // Рендеримо віджет Turnstile у контейнері. Скрипт api.js завантажується async,
+  // тому може бути ще не готовий — даємо невеликий polling.
+  const container = document.getElementById('turnstileContainer');
+  if (!container) return;
+  const tryRender = () => {
+    if (typeof turnstile === 'undefined') {
+      setTimeout(tryRender, 200);
+      return;
+    }
+    // Якщо вже відрендерено — скидаємо до чистого стану
+    if (turnstileWidgetId !== null) {
+      try { turnstile.reset(turnstileWidgetId); } catch (_) {}
+      return;
+    }
+    turnstileWidgetId = turnstile.render(container, {
+      sitekey: TURNSTILE_SITE_KEY,
+      theme: 'dark',
+      callback: (token) => { turnstileToken = token; },
+      'error-callback': () => { turnstileToken = ''; },
+      'expired-callback': () => { turnstileToken = ''; }
+    });
+  };
+  tryRender();
 }
 
 function restart() {
@@ -1709,6 +1744,7 @@ function buildPayload() {
     hp: (document.getElementById('hp_website') || {}).value || '',
     elapsed: Date.now() - FORM_OPENED_AT,
     fp: buildFingerprint(),
+    cfTurnstile: turnstileToken,
     source: data.source,
     fullName: data.fullName,
     dob: dobIso,
@@ -1742,6 +1778,13 @@ async function sendApplication() {
     btn.textContent = original;
     btn.disabled = false;
     alert('Не налаштований SCRIPT_URL');
+    return;
+  }
+
+  if (!turnstileToken) {
+    btn.textContent = original;
+    btn.disabled = false;
+    alert('Будь ласка, пройди перевірку «Я не робот» перед відправкою.');
     return;
   }
 
