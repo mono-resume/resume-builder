@@ -68,17 +68,18 @@
     margin-bottom: 12px;
     gap: 12px;
   }
-  .level-badge {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #fff;
-    padding: 5px 14px;
-    border-radius: 100px;
+  .progress-label {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+  }
+  .progress-percent {
+    color: var(--accent);
     font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.3px;
+    font-size: 13px;
     white-space: nowrap;
   }
-  .xp-text { color: var(--accent); font-weight: 700; font-size: 13px; white-space: nowrap; }
   .progress-bar {
     background: rgba(255,255,255,0.06);
     height: 8px;
@@ -94,28 +95,7 @@
   }
 
   .achievements {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-top: 14px;
-    justify-content: center;
-  }
-  .achievement {
-    width: 30px; height: 30px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    transition: all 0.4s;
-  }
-  .achievement.earned {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    border-color: var(--accent);
-    transform: scale(1.08);
-    box-shadow: 0 0 12px rgba(255, 107, 129, 0.5);
+    display: none;
   }
 
   .quest-card {
@@ -480,16 +460,20 @@
   }
   .resume-watermark {
     position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     transform: rotate(-30deg);
+    transform-origin: center center;
     pointer-events: none;
     user-select: none;
     z-index: 0;
     overflow: hidden;
     line-height: 1.8;
+    /* Робимо контейнер більшим за резюме, щоб після повороту -30deg кути не залишалися порожніми */
+    margin: -50%;
+    padding: 50%;
   }
   .resume-watermark .wm-row {
     display: block;
@@ -744,13 +728,12 @@
 <div class="container">
   <div class="progress-container" id="progressContainer">
     <div class="progress-info">
-      <span class="level-badge" id="levelBadge">Рівень 1</span>
-      <span class="xp-text" id="xpText">0 / 0 XP</span>
+      <span class="progress-label" id="progressLabel">Питання 1 з 1</span>
+      <span class="progress-percent" id="progressPercent">0%</span>
     </div>
     <div class="progress-bar">
       <div class="progress-fill" id="progressFill"></div>
     </div>
-    <div class="achievements" id="achievements"></div>
   </div>
 
   <div id="questContainer"></div>
@@ -914,27 +897,14 @@ let stepConfig = buildSteps();
 // ============================================================
 // PROGRESS
 // ============================================================
-function rebuildAchievements() {
-  const el = document.getElementById('achievements');
-  el.innerHTML = '';
-  stepConfig.forEach((q, i) => {
-    const a = document.createElement('div');
-    a.className = 'achievement' + (i < currentStep ? ' earned' : '');
-    a.id = 'ach-' + i;
-    a.textContent = q.icon;
-    el.appendChild(a);
-  });
-}
-
 function updateProgress() {
   const total = stepConfig.length;
-  const percent = (currentStep / total) * 100;
+  // Поточний крок (1-based) для лічильника. На фінальному екрані показуємо total/total.
+  const shown = Math.min(currentStep + 1, total);
+  const percent = Math.round((currentStep / total) * 100);
   document.getElementById('progressFill').style.width = percent + '%';
-  document.getElementById('xpText').textContent = currentStep + ' / ' + total + ' XP';
-  const level = Math.min(Math.floor(currentStep / Math.ceil(total / 4)) + 1, 4);
-  const titles = ['Новачок', 'Дослідник', 'Експерт', 'Майстер'];
-  document.getElementById('levelBadge').textContent = titles[level - 1] + ' • Рівень ' + level;
-  rebuildAchievements();
+  document.getElementById('progressLabel').textContent = `Питання ${shown} з ${total}`;
+  document.getElementById('progressPercent').textContent = percent + '%';
 }
 
 function escapeHtml(s) {
@@ -976,7 +946,6 @@ function renderQuestion() {
   container.innerHTML = `
     <div class="quest-card">
       <div class="quest-icon">${cfg.icon}</div>
-      <div class="quest-number">Квест ${currentStep + 1} з ${stepConfig.length}</div>
       <div class="quest-question">${cfg.title}</div>
       <div class="quest-hint">${cfg.hint}</div>
       <div id="fieldArea">${body}</div>
@@ -1114,7 +1083,7 @@ function updateAgeDisplay() {
 
 function buildWatermark() {
   const word = 'monobank';
-  const perRow = 14, rows = 26;
+  const perRow = 18, rows = 60;
   let html = '';
   for (let r = 0; r < rows; r++) {
     const cls = r % 2 === 0 ? 'wm-row' : 'wm-row alt';
@@ -1572,21 +1541,37 @@ async function downloadPDF() {
     const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pdfWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let heightLeft = imgHeight;
-    let position = 0;
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pdfHeight;
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+
+    // A4 ширина у мм
+    const pageWidthMm = 210;
+    const a4HeightMm = 297;
+    const imgWidthMm = pageWidthMm;
+    const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
+
+    let pdf;
+    if (imgHeightMm <= a4HeightMm) {
+      // Резюме коротше за A4 — робимо PDF-сторінку точно під розмір резюме (без порожнього хвоста)
+      pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: [pageWidthMm, imgHeightMm]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidthMm, imgHeightMm);
+    } else {
+      // Резюме довше за A4 — багатосторінковий PDF (стандартний A4)
+      pdf = new jsPDF('p', 'mm', 'a4');
+      let heightLeft = imgHeightMm;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidthMm, imgHeightMm);
+      heightLeft -= a4HeightMm;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeightMm;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidthMm, imgHeightMm);
+        heightLeft -= a4HeightMm;
+      }
     }
+
     const filename = 'Resume_' + (data.fullName.replace(/\s+/g, '_') || 'Candidate') + '.pdf';
     pdf.save(filename);
   } catch (e) {
