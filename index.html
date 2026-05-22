@@ -782,6 +782,11 @@
 </head>
 <body>
 
+<!-- Honeypot: невидиме поле, яке заповнюють тільки боти, що сліпо тягнуть форму. -->
+<div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;">
+  <label>Website (не заповнюйте) <input type="text" id="hp_website" name="website" tabindex="-1" autocomplete="off"></label>
+</div>
+
 <div class="container">
   <div class="progress-container" id="progressContainer">
     <div class="progress-info">
@@ -804,7 +809,7 @@
 // ID таблиці та логіка запису ховаються на серверній стороні Apps Script.
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx9K1vHsjYaDSeSraYub_zywtRxGhGM5HxjFhuPYIbUXmT7jgzloYiUFLaYeChfL62W/exec";
 
-const FORM_TOKEN = "festival_2026_v2_xK9mP";
+const FORM_TOKEN = "festival_2026";
 
 const VACANCY_VIP = 'Спеціаліст консьєрж-сервісу по роботі з VIP-клієнтами';
 const SOURCE_FESTIVAL = 'Фестиваль карʼєри';
@@ -838,6 +843,7 @@ const data = {
 };
 
 let currentStep = 0;
+const FORM_OPENED_AT = Date.now();
 
 // ============================================================
 // STEPS — будуються динамічно
@@ -1658,6 +1664,23 @@ async function downloadPDF() {
 // ============================================================
 // SEND
 // ============================================================
+function buildFingerprint() {
+  // Простий fingerprint для серверного rate-limit. Без зовнішніх бібліотек.
+  // Не для ідентифікації — лише щоб однотипні автоматизовані скрипти ловились в одну корзину.
+  const parts = [
+    navigator.userAgent || '',
+    navigator.language || '',
+    (navigator.languages || []).join(','),
+    new Date().getTimezoneOffset(),
+    screen.width + 'x' + screen.height,
+    screen.colorDepth || 0,
+    navigator.hardwareConcurrency || 0
+  ].join('|');
+  let h = 0;
+  for (let i = 0; i < parts.length; i++) h = ((h << 5) - h + parts.charCodeAt(i)) | 0;
+  return ('fp_' + (h >>> 0).toString(36));
+}
+
 function buildPayload() {
   const dobIso = (data.dobDay && data.dobMonth && data.dobYear)
     ? `${String(data.dobDay).padStart(2, '0')}.${String(data.dobMonth).padStart(2, '0')}.${data.dobYear}`
@@ -1683,6 +1706,9 @@ function buildPayload() {
     token: FORM_TOKEN,
     sheet: 'Фестиваль',
     origin: window.location.origin,
+    hp: (document.getElementById('hp_website') || {}).value || '',
+    elapsed: Date.now() - FORM_OPENED_AT,
+    fp: buildFingerprint(),
     source: data.source,
     fullName: data.fullName,
     dob: dobIso,
