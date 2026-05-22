@@ -710,16 +710,54 @@
   }
 
   @media (max-width: 700px) {
-    .quest-card { padding: 28px 20px; }
-    .quest-question { font-size: 18px; }
-    .btn-row { flex-direction: column; }
-    .btn { width: 100%; }
-    .resume-card { padding: 28px 22px; }
-    .resume-name { font-size: 24px; }
+    .container { padding: 18px 14px 60px; }
+    .progress-container { padding: 14px 16px; border-radius: 14px; }
+    .progress-label { font-size: 13px; }
+    .progress-percent { font-size: 12px; }
+
+    .quest-card { padding: 26px 18px; border-radius: 18px; }
+    .quest-icon { font-size: 40px; }
+    .quest-question { font-size: 17px; line-height: 1.3; }
+    .quest-hint { font-size: 13px; margin-bottom: 22px; }
+
+    .input-field, .textarea-field { padding: 12px 14px; font-size: 16px; /* 16px щоб iOS не зумив */ }
+    .dob-select { padding: 12px 12px; font-size: 16px; padding-right: 30px; }
+    .dob-row { gap: 8px; grid-template-columns: 1fr 1.4fr 1fr; }
+
+    .choice-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+    .choice-btn { padding: 14px 12px; font-size: 13px; }
+    .choice-icon { font-size: 22px; margin-bottom: 6px; }
+
+    .entry-block { padding: 16px; border-radius: 12px; }
+
+    .btn-row { flex-direction: column; gap: 10px; margin-top: 22px; }
+    .btn { width: 100%; padding: 13px 18px; font-size: 14px; min-width: 0; }
+
+    .photo-preview { width: 160px; height: 160px; }
+
+    .resume-card { padding: 22px 18px; }
+    .resume-name { font-size: 22px; }
+    .resume-position-line { font-size: 13px; padding: 5px 12px; }
+    .resume-photo { width: 90px; height: 90px; }
     .resume-equipment-grid { grid-template-columns: 1fr; }
+    .resume-eq-label { min-width: 100px; }
     .resume-watermark .wm-row { font-size: 22px; }
-    .resume-top { flex-direction: column; align-items: center; text-align: center; }
-    .resume-contacts { justify-content: center; }
+    .resume-top { flex-direction: column; align-items: center; text-align: center; gap: 16px; }
+    .resume-contacts { justify-content: center; font-size: 12px; gap: 8px 14px; }
+
+    .modal-box { padding: 30px 22px; border-radius: 18px; }
+    .modal-title { font-size: 20px; }
+    .modal-text { font-size: 14px; }
+    .modal-icon { font-size: 50px; }
+  }
+
+  @media (max-width: 380px) {
+    .quest-question { font-size: 16px; }
+    .choice-grid { grid-template-columns: 1fr; }
+    .dob-row { grid-template-columns: 1fr; gap: 8px; }
+    .resume-card { padding: 18px 14px; }
+    .resume-name { font-size: 20px; }
+    .resume-contacts { font-size: 11px; }
   }
 </style>
 </head>
