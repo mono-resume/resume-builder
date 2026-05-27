@@ -827,12 +827,13 @@ const SOURCE_FESTIVAL = 'Фестиваль карʼєри';
 const SOURCE_TG = 'Telegram канал Робота в monobank';
 
 // Список вакансій підвантажується з Google Sheets (аркуш «Вакансії») через
-// SCRIPT_URL?action=vacancies. Поки fetch не завершився — використовується
-// fallback нижче. Якщо запит впав/протермінувався — лишаємо fallback.
+// SCRIPT_URL?action=vacancies. Форма рендериться одразу з fallback —
+// коли fetch завершиться, ми оновимо крок vacancy на льоту, якщо
+// користувач ще на ньому (інакше при наступних рендерах підставиться вже свіжий список).
 let vacanciesList = [
   { value: 'Фахівець служби турботи про клієнтів' }
 ];
-const VACANCIES_FETCH_TIMEOUT_MS = 3000;
+const VACANCIES_FETCH_TIMEOUT_MS = 5000;
 
 function vacancyIcon(name) {
   if (name === VACANCY_VIP) return '👑';
@@ -848,6 +849,13 @@ async function loadVacancies() {
     const json = await resp.json();
     if (json && json.status === 'ok' && Array.isArray(json.vacancies) && json.vacancies.length > 0) {
       vacanciesList = json.vacancies.map(v => ({ value: String(v.value || '').trim() })).filter(v => v.value);
+      // Якщо користувач прямо зараз на кроці vacancy — перерендеримо його з оновленим списком.
+      // Користувач ще не міг нічого вибрати (бо при першому відкритті список був з 1 елемента
+      // і він не тапав), тож втрати стану нема.
+      const cfg = stepConfig[currentStep];
+      if (cfg && cfg.id === 'vacancy' && !data.vacancy) {
+        renderQuestion();
+      }
     }
   } catch (e) {
     // тиша — fallback залишається
@@ -1910,9 +1918,9 @@ function showSuccessModal() {
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
-(async function init() {
-  await loadVacancies();
+(function init() {
   renderQuestion();
+  loadVacancies();
 })();
 </script>
 
