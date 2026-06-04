@@ -875,6 +875,9 @@ const data = {
   email: '',
   city: '',
   englishLevel: '',
+  vipTravel: '',
+  vipBookingServices: '',
+  vipPremiumExp: '',
   experience: [{ company: '', position: '', years: '', duties: '' }],
   noExperience: false,
   education: [{ institution: '', specialty: '', years: '' }],
@@ -935,6 +938,21 @@ function buildSteps() {
         { value: 'C2 — Proficient', label: 'C2 — Proficient', icon: '👑' }
       ]
     });
+    steps.push({
+      id: 'vipTravel', icon: '✈️', title: 'Подорожі за кордон',
+      hint: 'Скільки разів бував за кордоном та які країни відвідував?',
+      type: 'textarea', placeholder: 'Наприклад: 5 разів — Польща, Туреччина, Єгипет, Австрія, ОАЕ'
+    });
+    steps.push({
+      id: 'vipBookingServices', icon: '🏨', title: 'Сервіси бронювання',
+      hint: 'Які сервіси використовував для бронювання готелів, авто та авіа?',
+      type: 'textarea', placeholder: 'Наприклад: Booking.com, Airbnb, Kayak, Rentalcars, SkyScanner...'
+    });
+    steps.push({
+      id: 'vipPremiumExp', icon: '👑', title: 'Досвід у преміальному сервісі',
+      hint: 'Обов\'язкова вимога: досвід в обслуговуванні преміальних/VIP клієнтів або бронювання (авіа, готелів, авто...)',
+      type: 'textarea', placeholder: 'Опиши, яким досвідом із зазначеного ти володієш...'
+    });
   }
 
   steps.push(
@@ -942,8 +960,8 @@ function buildSteps() {
     { id: 'education', icon: '🎓', title: 'Де навчався?', hint: 'Освіта — можна додати декілька закладів або пропустити', type: 'education' },
     { id: 'skills', icon: '⚡', title: 'Твої навички', hint: 'Професійні навички, мови, soft skills', type: 'textarea',
       placeholder: 'Excel, SQL, англійська B2, командна робота...' },
-    { id: 'pcType', icon: '💻', title: 'Який у тебе ПК?', hint: 'Тип твого основного пристрою',
-      type: 'choice', single: true,
+    { id: 'pcType', icon: '💻', title: 'Який у тебе ПК?', hint: 'Можна вибрати обидва варіанти',
+      type: 'choice', single: false,
       options: [
         { value: 'Стаціонарний ПК', label: 'Стаціонарний ПК', icon: '🖥️' },
         { value: 'Ноутбук', label: 'Ноутбук', icon: '💻' }
@@ -1460,7 +1478,7 @@ function validateStep() {
   if (cfg.type === 'textarea') {
     const field = document.getElementById('answerField');
     const value = field.value.trim();
-    if (!value && !cfg.optional && id === 'skills') return 'Розкажи про свої навички';
+    if (!value && !cfg.optional) return 'Це поле обов\'язкове';
     data[id] = value;
     return null;
   }
@@ -1547,6 +1565,15 @@ function renderFinal() {
        </div>`
     : '';
 
+  const vipExtrasHtml = (data.vipTravel || data.vipBookingServices || data.vipPremiumExp)
+    ? `<div class="resume-section">
+         <div class="resume-section-title">Консьєрж-сервіс</div>
+         ${data.vipTravel ? `<div style="margin-bottom:10px"><span style="font-weight:700;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Подорожі за кордон</span><div class="resume-text-block" style="margin-top:4px">${escapeHtml(data.vipTravel)}</div></div>` : ''}
+         ${data.vipBookingServices ? `<div style="margin-bottom:10px"><span style="font-weight:700;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Сервіси бронювання</span><div class="resume-text-block" style="margin-top:4px">${escapeHtml(data.vipBookingServices)}</div></div>` : ''}
+         ${data.vipPremiumExp ? `<div><span style="font-weight:700;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Досвід у преміальному сервісі</span><div class="resume-text-block" style="margin-top:4px">${escapeHtml(data.vipPremiumExp)}</div></div>` : ''}
+       </div>`
+    : '';
+
   const powerStr = data.power + (data.powerHours ? ` (${data.powerHours})` : '');
 
   const contactsHtml = [
@@ -1588,6 +1615,8 @@ function renderFinal() {
           </div>
 
           ${englishRowHtml}
+
+          ${vipExtrasHtml}
 
           <div class="resume-section">
             <div class="resume-section-title">Навички</div>
@@ -1666,6 +1695,7 @@ function restart() {
     source: '',
     vacancy: '', fullName: '', dobDay: '', dobMonth: '', dobYear: '',
     phone: '', telegram: '', email: '', city: '', englishLevel: '',
+    vipTravel: '', vipBookingServices: '', vipPremiumExp: '',
     experience: [{ company: '', position: '', years: '', duties: '' }], noExperience: false,
     education: [{ institution: '', specialty: '', years: '' }], noEducation: false,
     skills: '', pcType: '', os: '', power: '', powerHours: '', internet: '', extra: '', photo: ''
@@ -1789,6 +1819,15 @@ function buildPayload() {
 
   if (data.englishLevel) {
     expStr += (expStr ? '\n\n' : '') + `Англійська: ${data.englishLevel}`;
+  }
+  if (data.vipTravel) {
+    expStr += (expStr ? '\n\n' : '') + `Подорожі за кордон: ${data.vipTravel}`;
+  }
+  if (data.vipBookingServices) {
+    expStr += (expStr ? '\n\n' : '') + `Сервіси бронювання: ${data.vipBookingServices}`;
+  }
+  if (data.vipPremiumExp) {
+    expStr += (expStr ? '\n\n' : '') + `Досвід у преміальному сервісі: ${data.vipPremiumExp}`;
   }
 
   return {
